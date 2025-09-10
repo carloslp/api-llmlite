@@ -151,6 +151,7 @@ def generate_text():
         response = client.chat.completions.create(
             model=model_name,
             messages=messages,
+            stream=True,
         )
 
         generated_content = response.choices[0].message.content
