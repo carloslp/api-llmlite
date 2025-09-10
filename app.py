@@ -71,7 +71,7 @@ def generate_text():
             logging.info("Enviando solicitud a la API de LiteLLM (URL por defecto)...")
 
         response = completion(
-            model="claude-3-haiku-20240307",
+            model="gemini/gemini-2.5-pro",
             messages=messages,
             api_key=api_key,
             api_base=api_base  # Se pasa la URL base a litellm
