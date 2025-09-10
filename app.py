@@ -47,8 +47,14 @@ def generate_text():
     # 1. Obtener la configuración desde las variables de entorno
     api_key = os.environ.get("LITELLM_API_KEY")
     api_base = os.environ.get("LITELLM_API_BASE")
-    model_name = os.environ.get("LITELLM_MODEL")
+    model_name = os.environ.get("LITELLM_MODEL", "claude-3-haiku-20240307")
     
+    # MEJORA: Añadido un log explícito para depurar la configuración de la URL base
+    if not api_base:
+        app.logger.warning("La variable de entorno LITELLM_API_BASE no está configurada o está vacía. La solicitud se enviará a la API por defecto de LiteLLM, no a tu servicio autoalojado.")
+    else:
+        app.logger.info(f"URL base de LiteLLM configurada explícitamente: '{api_base}'")
+
     app.logger.info(f"Modelo a utilizar: {model_name}")
 
     if not api_key:
@@ -89,11 +95,6 @@ def generate_text():
 
     # 4. Llamar a la API de LiteLLM
     try:
-        if api_base:
-            app.logger.info(f"Enviando solicitud a la API de LiteLLM en la URL base: {api_base}")
-        else:
-            app.logger.info("Enviando solicitud a la API de LiteLLM (URL por defecto)...")
-
         response = completion(
             model=model_name,
             messages=messages,
