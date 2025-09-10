@@ -45,6 +45,7 @@ def get_models():
     app.logger.info("Solicitud recibida en el endpoint / (models).")
     api_base = os.environ.get("LITELLM_API_BASE")
     api_key = os.environ.get("LITELLM_API_KEY")
+    timeout = float(os.environ.get("LITELLM_TIMEOUT", 60.0))
 
     if not api_base:
         error_msg = "La variable de entorno LITELLM_API_BASE es obligatoria para esta operación."
@@ -57,12 +58,13 @@ def get_models():
         return jsonify({"error": error_msg}), 500
 
     try:
-        app.logger.info(f"Consultando la lista de modelos en: {api_base} usando el cliente de OpenAI")
+        app.logger.info(f"Consultando la lista de modelos en: {api_base} usando el cliente de OpenAI con un timeout de {timeout}s")
         
         # Inicializar el cliente de OpenAI apuntando al proxy de LiteLLM
         client = OpenAI(
             base_url=api_base,
             api_key=api_key,
+            timeout=timeout,
         )
 
         # Obtener la lista de modelos
@@ -96,6 +98,7 @@ def generate_text():
     api_key = os.environ.get("LITELLM_API_KEY")
     api_base = os.environ.get("LITELLM_API_BASE")
     model_name = os.environ.get("LITELLM_MODEL", "claude-3-haiku-20240307")
+    timeout = float(os.environ.get("LITELLM_TIMEOUT", 60.0))
     
     if not api_base:
         app.logger.warning("La variable de entorno LITELLM_API_BASE no está configurada o está vacía. La solicitud se enviará a la API por defecto de LiteLLM, no a tu servicio autoalojado.")
@@ -143,10 +146,12 @@ def generate_text():
 
     # 4. Llamar a la API usando el cliente de OpenAI
     try:
+        app.logger.info(f"Iniciando llamada a la API con un timeout de {timeout}s.")
         # Inicializar el cliente de OpenAI apuntando al proxy de LiteLLM
         client = OpenAI(
             base_url=api_base,
             api_key=api_key,
+            timeout=timeout,
         )
 
         response = client.chat.completions.create(
