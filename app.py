@@ -21,6 +21,17 @@ def generate_text():
     api_key = os.environ.get("LITELLM_API_KEY")
     api_base = os.environ.get("LITELLM_API_BASE") # Nueva variable para la URL del servicio
 
+    # A menudo, los endpoints compatibles con OpenAI residen en una ruta `/v1`.
+    # Esta lógica ayuda a corregir URLs base que podrían haber omitido esta parte crucial,
+    # que es una causa común del error "Method Not Allowed".
+    if api_base:
+        api_base = api_base.rstrip('/')
+        if not api_base.endswith("/v1"):
+            logging.warning("La URL base de LiteLLM no parece terminar en '/v1'. "
+                            "Añadiendo '/v1' para compatibilidad con el estándar de OpenAI. "
+                            "Si esto es incorrecto, ajusta la variable de entorno LITELLM_API_BASE para que incluya la ruta correcta.")
+            api_base += "/v1"
+
     if not api_key:
         logging.error("La variable de entorno LITELLM_API_KEY no está configurada.")
         return jsonify({
@@ -78,3 +89,4 @@ def generate_text():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
+
