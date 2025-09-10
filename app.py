@@ -56,7 +56,7 @@ def generate_text():
     try:
         logging.info("Enviando solicitud a la API de LiteLLM...")
         response = completion(
-            model="claude-3-haiku-20240307",  # Un modelo rápido y eficiente como ejemplo
+            model="gemini/gemini-2.5-pro",  # Un modelo rápido y eficiente como ejemplo
             messages=messages,
             api_key=api_key
         )
