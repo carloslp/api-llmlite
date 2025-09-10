@@ -135,8 +135,9 @@ def generate_text():
         return jsonify({"error": "No se pudo procesar el cuerpo de la solicitud. Asegúrate de que sea un JSON válido."}), 400
 
     # 3. Construir el array de mensajes
+    # Se añade la instrucción de responder en JSON al prompt del sistema.
     messages = [
-        {"role": "system", "content": system_prompt},
+        {"role": "system", "content": f"{system_prompt} Responde siempre con un objeto JSON válido."},
         {"role": "user", "content": user_prompt}
     ]
 
@@ -151,12 +152,13 @@ def generate_text():
         response = client.chat.completions.create(
             model=model_name,
             messages=messages,
-            stream=True,
+            response_format={"type": "json_object"}, # Se fuerza la salida a JSON
         )
 
         generated_content = response.choices[0].message.content
         
         app.logger.info("Respuesta recibida exitosamente de LiteLLM.")
+        # Como la respuesta ya es un string JSON, lo parseamos para devolver un objeto JSON real
         return jsonify({"response": generated_content})
 
     except APIError as api_err:
