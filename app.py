@@ -15,11 +15,12 @@ def generate_text():
     """
     Endpoint para generar texto usando la API de LiteLLM.
     Espera un payload JSON con 'system_prompt' y 'user_prompt'.
-    La clave de la API de LiteLLM se lee de la variable de entorno 'LITELLM_API_KEY'.
+    La configuración se lee de variables de entorno.
     """
-    # 1. Obtener la clave de la API desde las variables de entorno
-    # Esta es la forma segura de manejar credenciales.
+    # 1. Obtener la configuración desde las variables de entorno
     api_key = os.environ.get("LITELLM_API_KEY")
+    api_base = os.environ.get("LITELLM_API_BASE") # Nueva variable para la URL del servicio
+
     if not api_key:
         logging.error("La variable de entorno LITELLM_API_KEY no está configurada.")
         return jsonify({
@@ -38,7 +39,6 @@ def generate_text():
         if not user_prompt:
             return jsonify({"error": "El campo 'user_prompt' es obligatorio en el cuerpo de la solicitud."}), 400
         
-        # El prompt del sistema es opcional. Si no se proporciona, se usa uno por defecto.
         if not system_prompt:
             system_prompt = "Eres un asistente servicial y conciso."
 
@@ -54,15 +54,18 @@ def generate_text():
 
     # 4. Llamar a la API de LiteLLM
     try:
-        logging.info("Enviando solicitud a la API de LiteLLM...")
+        if api_base:
+            logging.info(f"Enviando solicitud a la API de LiteLLM en la URL base: {api_base}")
+        else:
+            logging.info("Enviando solicitud a la API de LiteLLM (URL por defecto)...")
+
         response = completion(
-            model="gemini/gemini-2.5-pro",  # Un modelo rápido y eficiente como ejemplo
+            model="claude-3-haiku-20240307",
             messages=messages,
-            api_key=api_key
+            api_key=api_key,
+            api_base=api_base  # Se pasa la URL base a litellm
         )
 
-        # Extraer el contenido de la respuesta. La estructura puede variar ligeramente.
-        # Usamos .get() para evitar errores si una clave no existe.
         generated_content = response.get('choices', [{}])[0].get('message', {}).get('content', '')
         
         logging.info("Respuesta recibida exitosamente de LiteLLM.")
@@ -70,11 +73,8 @@ def generate_text():
 
     except Exception as e:
         logging.error(f"Ocurrió un error al llamar a la API de LiteLLM: {e}")
-        # Es una buena práctica no exponer los detalles del error al cliente
         return jsonify({"error": "Ocurrió un error interno al comunicarse con el servicio del LLM."}), 502
 
 
 if __name__ == '__main__':
-    # El servidor se ejecuta en el puerto 5000 y es accesible desde cualquier IP (0.0.0.0)
-    # debug=True es útil para desarrollo, ya que reinicia el servidor con cada cambio.
     app.run(host='0.0.0.0', port=5000, debug=True)
