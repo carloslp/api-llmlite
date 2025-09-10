@@ -4,7 +4,7 @@ from flask import Flask, request, jsonify
 from litellm import completion
 import logging
 from logging.config import dictConfig
-import requests
+from openai import OpenAI, APIError
 
 # Configuración de logging robusta y centralizada.
 # Esto permite un formato detallado y la salida tanto a consola como a un archivo.
@@ -39,7 +39,8 @@ app = Flask(__name__)
 @app.route('/', methods=['GET'])
 def get_models():
     """
-    Endpoint para obtener la lista de modelos disponibles del servicio LiteLLM.
+    Endpoint para obtener la lista de modelos disponibles del servicio LiteLLM,
+    utilizando la librería de OpenAI, el cliente estándar para endpoints compatibles.
     """
     app.logger.info("Solicitud recibida en el endpoint / (models).")
     api_base = os.environ.get("LITELLM_API_BASE")
@@ -55,26 +56,29 @@ def get_models():
         app.logger.error(error_msg)
         return jsonify({"error": error_msg}), 500
 
-    models_url = f"{api_base.rstrip('/')}/models"
-    headers = {
-        "Authorization": f"Bearer {api_key}"
-    }
-
     try:
-        app.logger.info(f"Consultando la lista de modelos en: {models_url}")
-        response = requests.get(models_url, headers=headers)
-        response.raise_for_status() # Lanza una excepción para códigos de estado de error
+        app.logger.info(f"Consultando la lista de modelos en: {api_base} usando el cliente de OpenAI")
         
-        models_data = response.json()
-        app.logger.info("Lista de modelos obtenida exitosamente.")
-        return jsonify(models_data)
+        # Inicializar el cliente de OpenAI apuntando al proxy de LiteLLM
+        client = OpenAI(
+            base_url=api_base,
+            api_key=api_key,
+        )
 
-    except requests.exceptions.HTTPError as http_err:
-        app.logger.error(f"Error HTTP al consultar modelos: {http_err} - Respuesta: {response.text}", exc_info=True)
-        return jsonify({"error": f"Error del servicio LiteLLM al obtener modelos: {response.status_code}", "details": response.text}), 502
-    except requests.exceptions.RequestException as req_err:
-        app.logger.error(f"Error de conexión al consultar modelos: {req_err}", exc_info=True)
-        return jsonify({"error": "No se pudo conectar con el servicio de LiteLLM."}), 503
+        # Obtener la lista de modelos
+        models_response = client.models.list()
+
+        # Convertir la respuesta a una lista de diccionarios para poder serializarla a JSON
+        models_list = [model.model_dump() for model in models_response.data]
+        
+        app.logger.info("Lista de modelos obtenida exitosamente.")
+        return jsonify(models_list)
+
+    except APIError as api_err:
+        app.logger.error(f"Error de API al consultar modelos: {api_err}", exc_info=True)
+        # El cuerpo del error ya suele ser un JSON, así que lo pasamos directamente
+        error_details = api_err.body or {"message": str(api_err)}
+        return jsonify({"error": f"Error del servicio LiteLLM al obtener modelos: {api_err.status_code}", "details": error_details}), api_err.status_code
     except Exception as e:
         app.logger.error(f"Ocurrió un error inesperado al consultar modelos: {e}", exc_info=True)
         return jsonify({"error": "Ocurrió un error interno inesperado."}), 500
