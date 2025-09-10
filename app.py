@@ -86,7 +86,7 @@ def get_models():
 @app.route('/generate', methods=['POST'])
 def generate_text():
     """
-    Endpoint para generar texto usando la API de LiteLLM.
+    Endpoint para generar texto usando la API de LiteLLM a través del cliente de OpenAI.
     Espera un payload JSON con 'system_prompt' y 'user_prompt'.
     La configuración se lee de variables de entorno.
     """
@@ -97,7 +97,6 @@ def generate_text():
     api_base = os.environ.get("LITELLM_API_BASE")
     model_name = os.environ.get("LITELLM_MODEL", "claude-3-haiku-20240307")
     
-    # MEJORA: Añadido un log explícito para depurar la configuración de la URL base
     if not api_base:
         app.logger.warning("La variable de entorno LITELLM_API_BASE no está configurada o está vacía. La solicitud se enviará a la API por defecto de LiteLLM, no a tu servicio autoalojado.")
     else:
@@ -135,30 +134,37 @@ def generate_text():
         app.logger.error(f"Error al procesar el JSON de la solicitud: {e}", exc_info=True)
         return jsonify({"error": "No se pudo procesar el cuerpo de la solicitud. Asegúrate de que sea un JSON válido."}), 400
 
-    # 3. Construir el array de mensajes para la API de LiteLLM
+    # 3. Construir el array de mensajes
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_prompt}
     ]
 
-    # 4. Llamar a la API de LiteLLM
+    # 4. Llamar a la API usando el cliente de OpenAI
     try:
-        response = completion(
-            model=model_name,
-            messages=messages,
+        # Inicializar el cliente de OpenAI apuntando al proxy de LiteLLM
+        client = OpenAI(
+            base_url=api_base,
             api_key=api_key,
-            api_base=api_base
         )
 
-        generated_content = response.get('choices', [{}])[0].get('message', {}).get('content', '')
+        response = client.chat.completions.create(
+            model=model_name,
+            messages=messages,
+        )
+
+        generated_content = response.choices[0].message.content
         
         app.logger.info("Respuesta recibida exitosamente de LiteLLM.")
         return jsonify({"response": generated_content})
 
+    except APIError as api_err:
+        app.logger.error(f"Error de API al generar texto: {api_err}", exc_info=True)
+        error_details = api_err.body or {"message": str(api_err)}
+        return jsonify({"error": f"Error del servicio LiteLLM al generar texto: {api_err.status_code}", "details": error_details}), api_err.status_code
     except Exception as e:
-        # Usar exc_info=True para registrar el traceback completo de la excepción
-        app.logger.error(f"Ocurrió un error al llamar a la API de LiteLLM: {e}", exc_info=True)
-        return jsonify({"error": "Ocurrió un error interno al comunicarse con el servicio del LLM."}), 502
+        app.logger.error(f"Ocurrió un error inesperado al generar texto: {e}", exc_info=True)
+        return jsonify({"error": "Ocurrió un error interno inesperado."}), 500
 
 
 if __name__ == '__main__':
