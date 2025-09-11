@@ -154,14 +154,20 @@ def generate_text():
             timeout=timeout,
         )
 
-        response = client.chat.completions.create(
+        response_stream = client.chat.completions.create(
             model=model_name,
             messages=messages,
-            stream=True,
-            response_format={"type": "json_object"}, # Se fuerza la salida a JSON
+            stream=True,  # <---- This returns a stream
+            response_format={"type": "json_object"},
         )
-
-        generated_content = response.choices[0].message.content
+        
+        # Collect the streamed parts into a string
+        generated_content = ""
+        for part in response_stream:
+            # The exact structure may vary; adjust as needed
+            generated_content += part.choices[0].delta.content if part.choices[0].delta.content else ""
+        
+        # Now you have the full content
         
         app.logger.info("Respuesta recibida exitosamente de LiteLLM.")
         # Como la respuesta ya es un string JSON, lo parseamos para devolver un objeto JSON real
