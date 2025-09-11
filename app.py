@@ -157,6 +157,7 @@ def generate_text():
         response = client.chat.completions.create(
             model=model_name,
             messages=messages,
+            stream=True,
             response_format={"type": "json_object"}, # Se fuerza la salida a JSON
         )
 
